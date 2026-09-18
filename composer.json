@@ -1,0 +1,49 @@
+{
+    "name": "bedriox/example-plugin",
+    "description": "First-party example plugin for the Bedriox Minecraft: Bedrock Edition server.",
+    "type": "project",
+    "license": "GPL-3.0-only",
+    "homepage": "https://bedriox.com",
+    "support": {
+        "source": "https://github.com/Bedriox/ExamplePlugin"
+    },
+    "require": {
+        "php": "^8.4"
+    },
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^3.75",
+        "phpstan/phpstan": "^2.1",
+        "phpunit/phpunit": "^11.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "Bedriox\\ExamplePlugin\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Bedriox\\ExamplePlugin\\Tests\\": "tests/",
+            "Bedriox\\Api\\": "tests/Stubs/Api/"
+        }
+    },
+    "scripts": {
+        "verify:composer": "composer validate --strict",
+        "verify:audit": "composer audit --locked",
+        "test": "phpunit",
+        "analyse": "phpstan analyse --no-progress --memory-limit=512M",
+        "style": "php-cs-fixer check --diff --verbose",
+        "check": [
+            "@verify:composer",
+            "@verify:audit",
+            "@test",
+            "@analyse",
+            "@style"
+        ]
+    },
+    "config": {
+        "allow-plugins": false,
+        "sort-packages": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

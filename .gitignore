@@ -1,0 +1,9 @@
+/.idea/
+/.phpunit.cache/
+/.php-cs-fixer.cache
+/.vscode/
+/build/
+/coverage/
+/dist/
+/vendor/
+composer.phar

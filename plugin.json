@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "name": "ExamplePlugin",
+  "version": "0.1.0",
+  "api": "^0.1",
+  "main": "Bedriox\\ExamplePlugin\\Main",
+  "namespace": "Bedriox\\ExamplePlugin",
+  "authors": ["Bedriox Team"],
+  "dependencies": [],
+  "softDependencies": [],
+  "load": "WORLD_READY"
+}
