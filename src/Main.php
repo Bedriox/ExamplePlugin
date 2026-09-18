@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 namespace Bedriox\ExamplePlugin;
 
+use Bedriox\Api\Command\AllowedCommandSenders;
+use Bedriox\Api\Command\CommandContext;
+use Bedriox\Api\Command\CommandDefinition;
+use Bedriox\Api\Command\CommandResult;
+use Bedriox\Api\Command\ConsoleCommandSender;
+use Bedriox\Api\Command\PlayerCommandSender;
 use Bedriox\Api\Event\Block\BlockPlacedEvent;
 use Bedriox\Api\Event\EventHandler;
 use Bedriox\Api\Event\EventPriority;
@@ -16,7 +22,36 @@ final class Main extends Plugin
     public function onEnable(): void
     {
         $this->context()->events()->registerSubscriber($this);
+        $this->context()->commands()->register(
+            new CommandDefinition(
+                'examplesender',
+                'Shows whether a command came from the console or a player.',
+                'examplesender',
+                allowedSenders: AllowedCommandSenders::ANY,
+            ),
+            $this->showCommandSender(...),
+        );
         $this->logger()->info('ExamplePlugin enabled');
+    }
+
+    private function showCommandSender(CommandContext $context): CommandResult
+    {
+        if ($context->arguments() !== []) {
+            return CommandResult::USAGE;
+        }
+
+        $sender = $context->sender();
+        if ($sender instanceof PlayerCommandSender) {
+            $sender->sendMessage('This command was sent by player ' . $sender->player()->name . '.');
+            return CommandResult::SUCCESS;
+        }
+        if ($sender instanceof ConsoleCommandSender) {
+            $sender->sendMessage('This command was sent from the server console.');
+            return CommandResult::SUCCESS;
+        }
+
+        $sender->sendMessage('This command sender is not supported.');
+        return CommandResult::FAILURE;
     }
 
     #[EventHandler]

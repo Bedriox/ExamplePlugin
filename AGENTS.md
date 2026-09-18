@@ -43,7 +43,8 @@ player data, logs, crash reports, packet captures, or Minecraft assets.
   bounded.
 - Do not imply PHP plugins are sandboxed. They are trusted code in the server
   process.
-- Do not add commands or other features before their public API exists.
+- Demonstrate commands and other features only after their public API exists;
+  keep examples within the released sender, permission, and input boundary.
 
 ## Change safety
 
