@@ -15,6 +15,7 @@ use Bedriox\Api\Event\EventHandler;
 use Bedriox\Api\Event\EventPriority;
 use Bedriox\Api\Event\Player\PlayerChatEvent;
 use Bedriox\Api\Event\Player\PlayerJoinEvent;
+use Bedriox\Api\Player\TitleTimes;
 use Bedriox\Api\Plugin\Plugin;
 
 final class Main extends Plugin
@@ -30,6 +31,15 @@ final class Main extends Plugin
                 allowedSenders: AllowedCommandSenders::ANY,
             ),
             $this->showCommandSender(...),
+        );
+        $this->context()->commands()->register(
+            new CommandDefinition(
+                'exampledisplay',
+                'Demonstrates player text and display methods.',
+                'exampledisplay <message|popup|jukebox|tip|title|subtitle|actionbar|toast|clear|reset>',
+                allowedSenders: AllowedCommandSenders::PLAYER_ONLY,
+            ),
+            $this->showPlayerDisplay(...),
         );
         $this->logger()->info('ExamplePlugin enabled');
     }
@@ -52,6 +62,31 @@ final class Main extends Plugin
 
         $sender->sendMessage('This command sender is not supported.');
         return CommandResult::FAILURE;
+    }
+
+    private function showPlayerDisplay(CommandContext $context): CommandResult
+    {
+        $sender = $context->sender();
+        if (!$sender instanceof PlayerCommandSender || \count($context->arguments()) !== 1) {
+            return CommandResult::USAGE;
+        }
+
+        $player = $sender->player();
+        $sent = match (strtolower($context->arguments()[0])) {
+            'message' => $player->sendMessage('Example message'),
+            'popup' => $player->sendPopup('Example popup'),
+            'jukebox' => $player->sendJukeboxPopup('Example jukebox popup'),
+            'tip' => $player->sendTip('Example tip'),
+            'title' => $player->sendTitle('Example title', 'Example subtitle', new TitleTimes(10, 70, 20)),
+            'subtitle' => $player->sendSubTitle('Example subtitle'),
+            'actionbar' => $player->sendActionBar('Example action bar'),
+            'toast' => $player->sendToast('Example toast', 'Player display API is working'),
+            'clear' => $player->clearTitle(),
+            'reset' => $player->resetTitles(),
+            default => null,
+        };
+
+        return $sent === null ? CommandResult::USAGE : ($sent ? CommandResult::SUCCESS : CommandResult::FAILURE);
     }
 
     #[EventHandler]

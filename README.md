@@ -7,8 +7,8 @@ modern PHP.
 `ExamplePlugin` targets the experimental Bedriox API `0.1`. It demonstrates a
 PHAR-ready manifest, lifecycle logging, attribute-based event registration,
 the default `NORMAL` priority, an explicit `HIGH` cancellable listener,
-read-only `MONITOR` observation, a safe player message request, and a typed
-command sender.
+read-only `MONITOR` observation, a safe player message request, typed command
+senders, and the high-level player display API.
 
 ## Example behavior
 
@@ -18,11 +18,18 @@ command sender.
 - Accepted and cancelled chat is observed at `MONITOR` priority.
 - Successful block placement is logged through the plugin-bound logger.
 - `examplesender` reports whether its caller is the server console or a player.
+- `exampledisplay` demonstrates messages, popups, jukebox popups, tips, titles,
+  subtitles, action bars, toast notifications, and title clear/reset behavior.
 
-Bedriox currently dispatches commands from the server console. The command is
-registered for either sender type to demonstrate the stable
-`ConsoleCommandSender` and `PlayerCommandSender` distinction ahead of in-game
-command input; it does not change player or world state.
+`examplesender` accepts either sender type and does not change player or world
+state. `exampledisplay` is player-only and accepts one display name, for
+example:
+
+```text
+/exampledisplay title
+/exampledisplay actionbar
+/exampledisplay toast
+```
 
 ## Run the source plugin
 

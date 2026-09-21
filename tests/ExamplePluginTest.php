@@ -46,7 +46,7 @@ final class ExamplePluginTest extends TestCase
         $plugin->onJoin(new PlayerJoinEvent($player));
 
         self::assertSame([$plugin], $registrar->subscribers);
-        self::assertCount(1, $commands->definitions);
+        self::assertCount(2, $commands->definitions);
         self::assertSame('examplesender', $commands->definitions[0]->name);
         self::assertSame(['ExamplePlugin enabled'], $logger->info);
         self::assertSame([['uuid-one', 'Welcome to this Bedriox server, Alex!']], $server->messages);
@@ -120,6 +120,37 @@ final class ExamplePluginTest extends TestCase
             $commands->dispatch(0, new CommandContext($console, 'examplesender', ['unexpected'])),
         );
         self::assertSame([], $console->messages);
+    }
+
+    public function testPlayerDisplayCommandDemonstratesEveryHighLevelPresentation(): void
+    {
+        $commands = new RecordingCommandRegistrar();
+        $plugin = new Main(self::context(
+            new RecordingLogger(),
+            new RecordingRegistrar(),
+            $commands,
+            new RecordingServer(),
+        ));
+        $plugin->onEnable();
+        $player = new Player('Alex', 'uuid-one');
+        $sender = new RecordingPlayerSender($player);
+
+        self::assertSame('exampledisplay', $commands->definitions[1]->name);
+        self::assertSame(AllowedCommandSenders::PLAYER_ONLY, $commands->definitions[1]->allowedSenders);
+        foreach (['message', 'popup', 'jukebox', 'tip', 'title', 'subtitle', 'actionbar', 'toast', 'clear', 'reset'] as $display) {
+            self::assertSame(
+                CommandResult::SUCCESS,
+                $commands->dispatch(1, new CommandContext($sender, 'exampledisplay', [$display])),
+            );
+        }
+        self::assertSame(
+            ['message', 'popup', 'jukebox', 'tip', 'title', 'subtitle', 'actionbar', 'toast', 'clear', 'reset'],
+            array_column($player->displays, 0),
+        );
+        self::assertSame(
+            CommandResult::USAGE,
+            $commands->dispatch(1, new CommandContext($sender, 'exampledisplay', ['unknown'])),
+        );
     }
 
     public function testAttributesDemonstrateDefaultHighAndMonitorPriorities(): void
