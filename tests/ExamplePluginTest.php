@@ -5,14 +5,16 @@ declare(strict_types=1);
 namespace Bedriox\ExamplePlugin\Tests;
 
 use Bedriox\Api\Command\AllowedCommandSenders;
+use Bedriox\Api\Command\Command;
 use Bedriox\Api\Command\CommandContext;
-use Bedriox\Api\Command\CommandDefinition;
 use Bedriox\Api\Command\CommandJob;
 use Bedriox\Api\Command\CommandJobSubscription;
 use Bedriox\Api\Command\CommandRegistrar;
 use Bedriox\Api\Command\CommandResult;
 use Bedriox\Api\Command\CommandSenderType;
+use Bedriox\Api\Command\CommandSoftEnum;
 use Bedriox\Api\Command\CommandSubscription;
+use Bedriox\Api\Command\CommandValues;
 use Bedriox\Api\Command\ConsoleCommandSender;
 use Bedriox\Api\Command\PlayerCommandSender;
 use Bedriox\Api\Event\EventHandler;
@@ -26,6 +28,7 @@ use Bedriox\Api\Plugin\PluginLogger;
 use Bedriox\Api\Plugin\SourcePluginDefinition;
 use Bedriox\Api\Plugin\SourcePluginRegistrar;
 use Bedriox\Api\Server;
+use Bedriox\ExamplePlugin\Command\DisplayMode;
 use Bedriox\ExamplePlugin\Main;
 use PHPUnit\Framework\TestCase;
 use ReflectionMethod;
@@ -46,8 +49,8 @@ final class ExamplePluginTest extends TestCase
         $plugin->onJoin(new PlayerJoinEvent($player));
 
         self::assertSame([$plugin], $registrar->subscribers);
-        self::assertCount(2, $commands->definitions);
-        self::assertSame('examplesender', $commands->definitions[0]->name);
+        self::assertCount(2, $commands->commands);
+        self::assertSame('examplesender', $commands->commands[0]->definition()->name);
         self::assertSame(['ExamplePlugin enabled'], $logger->info);
         self::assertSame([['uuid-one', 'Welcome to this Bedriox server, Alex!']], $server->messages);
     }
@@ -84,26 +87,28 @@ final class ExamplePluginTest extends TestCase
         ));
         $plugin->onEnable();
 
-        $definition = $commands->definitions[0];
+        $definition = $commands->commands[0]->definition();
         self::assertSame(AllowedCommandSenders::ANY, $definition->allowedSenders);
         self::assertNull($definition->permission);
 
         $console = new RecordingConsoleSender();
-        self::assertSame(
-            CommandResult::SUCCESS,
-            $commands->dispatch(0, new CommandContext($console, 'examplesender', [])),
-        );
+        self::assertTrue($commands->dispatch(0, new CommandContext(
+            $console,
+            'examplesender',
+            new CommandValues(),
+        ))->isSuccess());
         self::assertSame(['This command was sent from the server console.'], $console->messages);
 
         $player = new RecordingPlayerSender(new Player('Alex', 'uuid-one'));
-        self::assertSame(
-            CommandResult::SUCCESS,
-            $commands->dispatch(0, new CommandContext($player, 'examplesender', [])),
-        );
+        self::assertTrue($commands->dispatch(0, new CommandContext(
+            $player,
+            'examplesender',
+            new CommandValues(),
+        ))->isSuccess());
         self::assertSame(['This command was sent by player Alex.'], $player->messages);
     }
 
-    public function testExampleSenderCommandReturnsUsageForArguments(): void
+    public function testExampleSenderCommandDeclaresNoArguments(): void
     {
         $commands = new RecordingCommandRegistrar();
         $plugin = new Main(self::context(
@@ -113,13 +118,7 @@ final class ExamplePluginTest extends TestCase
             new RecordingServer(),
         ));
         $plugin->onEnable();
-        $console = new RecordingConsoleSender();
-
-        self::assertSame(
-            CommandResult::USAGE,
-            $commands->dispatch(0, new CommandContext($console, 'examplesender', ['unexpected'])),
-        );
-        self::assertSame([], $console->messages);
+        self::assertSame([], $commands->commands[0]->defineArguments()->parameters());
     }
 
     public function testPlayerDisplayCommandDemonstratesEveryHighLevelPresentation(): void
@@ -135,21 +134,21 @@ final class ExamplePluginTest extends TestCase
         $player = new Player('Alex', 'uuid-one');
         $sender = new RecordingPlayerSender($player);
 
-        self::assertSame('exampledisplay', $commands->definitions[1]->name);
-        self::assertSame(AllowedCommandSenders::PLAYER_ONLY, $commands->definitions[1]->allowedSenders);
-        foreach (['message', 'popup', 'jukebox', 'tip', 'title', 'subtitle', 'actionbar', 'toast', 'clear', 'reset'] as $display) {
-            self::assertSame(
-                CommandResult::SUCCESS,
-                $commands->dispatch(1, new CommandContext($sender, 'exampledisplay', [$display])),
-            );
+        self::assertSame('exampledisplay', $commands->commands[1]->definition()->name);
+        self::assertSame(AllowedCommandSenders::PLAYER_ONLY, $commands->commands[1]->definition()->allowedSenders);
+        $parameter = $commands->commands[1]->defineArguments()->parameters()[0];
+        self::assertSame('display', $parameter->name);
+        self::assertSame(array_column(DisplayMode::cases(), 'value'), $parameter->choices);
+        foreach (DisplayMode::cases() as $display) {
+            self::assertTrue($commands->dispatch(1, new CommandContext(
+                $sender,
+                'exampledisplay',
+                new CommandValues(['display' => $display]),
+            ))->isSuccess());
         }
         self::assertSame(
             ['message', 'popup', 'jukebox', 'tip', 'title', 'subtitle', 'actionbar', 'toast', 'clear', 'reset'],
             array_column($player->displays, 0),
-        );
-        self::assertSame(
-            CommandResult::USAGE,
-            $commands->dispatch(1, new CommandContext($sender, 'exampledisplay', ['unknown'])),
         );
     }
 
@@ -218,18 +217,19 @@ final class RecordingLogger implements PluginLogger
 
 final class RecordingCommandRegistrar implements CommandRegistrar
 {
-    /** @var list<CommandDefinition> */
-    public array $definitions = [];
+    /** @var list<Command> */
+    public array $commands = [];
 
-    /** @var list<callable(CommandContext): CommandResult> */
-    private array $handlers = [];
-
-    public function register(CommandDefinition $definition, callable $handler): CommandSubscription
+    public function register(Command $command): CommandSubscription
     {
-        $this->definitions[] = $definition;
-        $this->handlers[] = $handler;
+        $this->commands[] = $command;
 
         return new RecordingCommandSubscription();
+    }
+
+    public function registerSoftEnum(string $name, array $values = []): CommandSoftEnum
+    {
+        throw new RuntimeException('The example plugin does not register a dynamic soft enum.');
     }
 
     public function submitJob(CommandJob $job): CommandJobSubscription
@@ -239,7 +239,7 @@ final class RecordingCommandRegistrar implements CommandRegistrar
 
     public function dispatch(int $index, CommandContext $context): CommandResult
     {
-        return ($this->handlers[$index])($context);
+        return $this->commands[$index]->execute($context);
     }
 }
 

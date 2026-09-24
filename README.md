@@ -7,8 +7,9 @@ modern PHP.
 `ExamplePlugin` targets the experimental Bedriox API `0.1`. It demonstrates a
 PHAR-ready manifest, lifecycle logging, attribute-based event registration,
 the default `NORMAL` priority, an explicit `HIGH` cancellable listener,
-read-only `MONITOR` observation, a safe player message request, typed command
-senders, and the high-level player display API.
+read-only `MONITOR` observation, a safe player message request, class-based
+typed commands, PHP backed-enum arguments, typed command values, senders, and
+the high-level player display API.
 
 ## Example behavior
 
@@ -22,8 +23,9 @@ senders, and the high-level player display API.
   subtitles, action bars, toast notifications, and title clear/reset behavior.
 
 `examplesender` accepts either sender type and does not change player or world
-state. `exampledisplay` is player-only and accepts one display name, for
-example:
+state. `exampledisplay` is player-only and declares its display modes through
+a PHP backed enum, which Bedriox uses for validation, usage, and client
+autocomplete. For example:
 
 ```text
 /exampledisplay title
