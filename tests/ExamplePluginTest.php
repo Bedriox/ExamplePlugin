@@ -17,11 +17,18 @@ use Bedriox\Api\Command\CommandSubscription;
 use Bedriox\Api\Command\CommandValues;
 use Bedriox\Api\Command\ConsoleCommandSender;
 use Bedriox\Api\Command\PlayerCommandSender;
+use Bedriox\Api\Crafting\CraftingGrid;
+use Bedriox\Api\Crafting\RecipeRegistrar;
+use Bedriox\Api\Crafting\ShapedRecipe;
+use Bedriox\Api\Crafting\ShapelessRecipe;
 use Bedriox\Api\Event\EventHandler;
 use Bedriox\Api\Event\EventPriority;
 use Bedriox\Api\Event\EventRegistrar;
 use Bedriox\Api\Event\Player\PlayerChatEvent;
+use Bedriox\Api\Event\Player\PlayerCraftedItemEvent;
+use Bedriox\Api\Event\Player\PlayerCraftItemEvent;
 use Bedriox\Api\Event\Player\PlayerJoinEvent;
+use Bedriox\Api\Inventory\ItemStack;
 use Bedriox\Api\Player\Player;
 use Bedriox\Api\Plugin\PluginContext;
 use Bedriox\Api\Plugin\PluginLogger;
@@ -42,7 +49,8 @@ final class ExamplePluginTest extends TestCase
         $commands = new RecordingCommandRegistrar();
         $logger = new RecordingLogger();
         $server = new RecordingServer();
-        $plugin = new Main(self::context($logger, $registrar, $commands, $server));
+        $recipes = new RecordingRecipeRegistrar();
+        $plugin = new Main(self::context($logger, $registrar, $commands, $server, $recipes));
         $player = new Player('Alex', 'uuid-one');
 
         $plugin->onEnable();
@@ -51,6 +59,8 @@ final class ExamplePluginTest extends TestCase
         self::assertSame([$plugin], $registrar->subscribers);
         self::assertCount(2, $commands->commands);
         self::assertSame('examplesender', $commands->commands[0]->definition()->name);
+        self::assertCount(1, $recipes->recipes);
+        self::assertSame('exampleplugin:grass_block_from_dirt', $recipes->recipes[0]->identifier());
         self::assertSame(['ExamplePlugin enabled'], $logger->info);
         self::assertSame([['uuid-one', 'Welcome to this Bedriox server, Alex!']], $server->messages);
     }
@@ -74,6 +84,41 @@ final class ExamplePluginTest extends TestCase
         self::assertFalse($accepted->isCancelled());
         self::assertTrue($cancelled->isCancelled());
         self::assertSame([['uuid-one', 'ExamplePlugin cancelled that message.']], $server->messages);
+    }
+
+    public function testCraftingExampleRegistersObservesAndBoundsItsRecipe(): void
+    {
+        $logger = new RecordingLogger();
+        $server = new RecordingServer();
+        $recipes = new RecordingRecipeRegistrar();
+        $plugin = new Main(self::context(
+            $logger,
+            new RecordingRegistrar(),
+            new RecordingCommandRegistrar(),
+            $server,
+            $recipes,
+        ));
+        $plugin->onEnable();
+
+        $recipe = $recipes->recipes[0];
+        $player = new Player('Alex', 'uuid-one');
+        $input = new ItemStack('minecraft:dirt', 17);
+        $output = new ItemStack('minecraft:grass_block', 1);
+        $grid = new CraftingGrid(2, 2, [$input, null, null, null]);
+        $allowed = new PlayerCraftItemEvent($player, $recipe, $grid, 16, [$input], [$output]);
+        $limited = new PlayerCraftItemEvent($player, $recipe, $grid, 17, [$input], [$output]);
+
+        $plugin->onCraft($allowed);
+        $plugin->onCraft($limited);
+        $plugin->onCrafted(new PlayerCraftedItemEvent($player, $recipe, $grid, 1, [$input], [$output]));
+
+        self::assertFalse($allowed->isCancelled());
+        self::assertTrue($limited->isCancelled());
+        self::assertSame(
+            [['uuid-one', 'ExamplePlugin limits this recipe to 16 crafts per request.']],
+            $server->messages,
+        );
+        self::assertContains('Observed 1 completed example craft(s)', $logger->debug);
     }
 
     public function testExampleSenderCommandDistinguishesConsoleAndPlayer(): void
@@ -156,6 +201,8 @@ final class ExamplePluginTest extends TestCase
     {
         self::assertSame(EventPriority::NORMAL, self::handler('onJoin')->priority);
         self::assertSame(EventPriority::HIGH, self::handler('onChat')->priority);
+        self::assertSame(EventPriority::HIGH, self::handler('onCraft')->priority);
+        self::assertSame(EventPriority::MONITOR, self::handler('onCrafted')->priority);
         $monitor = self::handler('observeChat');
         self::assertSame(EventPriority::MONITOR, $monitor->priority);
         self::assertTrue($monitor->receiveCancelled);
@@ -174,6 +221,7 @@ final class ExamplePluginTest extends TestCase
         RecordingRegistrar $events,
         RecordingCommandRegistrar $commands,
         RecordingServer $server,
+        ?RecordingRecipeRegistrar $recipes = null,
     ): PluginContext {
         return new PluginContext(
             'ExamplePlugin',
@@ -183,7 +231,19 @@ final class ExamplePluginTest extends TestCase
             new UnusedSourcePluginRegistrar(),
             $server,
             __DIR__ . '/plugin_data/ExamplePlugin',
+            recipes: $recipes ?? new RecordingRecipeRegistrar(),
         );
+    }
+}
+
+final class RecordingRecipeRegistrar implements RecipeRegistrar
+{
+    /** @var list<ShapedRecipe|ShapelessRecipe> */
+    public array $recipes = [];
+
+    public function register(ShapedRecipe|ShapelessRecipe $recipe, bool $replace = false): void
+    {
+        $this->recipes[] = $recipe;
     }
 }
 

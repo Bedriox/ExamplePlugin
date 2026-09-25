@@ -9,7 +9,7 @@ PHAR-ready manifest, lifecycle logging, attribute-based event registration,
 the default `NORMAL` priority, an explicit `HIGH` cancellable listener,
 read-only `MONITOR` observation, a safe player message request, class-based
 typed commands, PHP backed-enum arguments, typed command values, senders, and
-the high-level player display API.
+the high-level player display API, plus a runtime crafting recipe.
 
 ## Example behavior
 
@@ -18,6 +18,10 @@ the high-level player display API.
   authoritative private response.
 - Accepted and cancelled chat is observed at `MONITOR` priority.
 - Successful block placement is logged through the plugin-bound logger.
+- One dirt block can be crafted into one grass block through the plugin-owned
+  `exampleplugin:grass_block_from_dirt` shapeless recipe.
+- A cancellable pre-craft listener limits that example recipe to 16 repetitions
+  per request, while a `MONITOR` listener observes committed crafts.
 - `examplesender` reports whether its caller is the server console or a player.
 - `exampledisplay` demonstrates messages, popups, jukebox popups, tips, titles,
   subtitles, action bars, toast notifications, and title clear/reset behavior.
@@ -55,6 +59,11 @@ From the Bedriox console, verify the command example:
 ```text
 examplesender
 ```
+
+With a player, place one dirt block in the personal or crafting-table grid and
+craft the advertised grass-block result. A request for more than 16 repetitions
+is cancelled as one transaction and receives the plugin's private explanation;
+smaller committed crafts are observed through the post-event listener.
 
 ## Build the PHAR
 

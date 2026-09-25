@@ -6,6 +6,8 @@ All notable ExamplePlugin changes are recorded here.
 
 ### Added
 
+- Add a plugin-owned shapeless crafting recipe, pre-craft policy, committed
+  craft observation, and repository coverage.
 - Migrate the example commands to the class-based typed API and demonstrate a PHP backed-enum argument through `exampledisplay`.
 - Add the player-only `exampledisplay` command covering every high-level Bedriox text and display method.
 - Add the API `0.1` PHAR-ready example with lifecycle logging, typed join,

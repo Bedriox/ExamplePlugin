@@ -4,23 +4,59 @@ declare(strict_types=1);
 
 namespace Bedriox\ExamplePlugin;
 
+use Bedriox\Api\Crafting\RecipeIngredient;
+use Bedriox\Api\Crafting\ShapelessRecipe;
 use Bedriox\Api\Event\Block\BlockPlacedEvent;
 use Bedriox\Api\Event\EventHandler;
 use Bedriox\Api\Event\EventPriority;
 use Bedriox\Api\Event\Player\PlayerChatEvent;
+use Bedriox\Api\Event\Player\PlayerCraftedItemEvent;
+use Bedriox\Api\Event\Player\PlayerCraftItemEvent;
 use Bedriox\Api\Event\Player\PlayerJoinEvent;
+use Bedriox\Api\Inventory\ItemStack;
 use Bedriox\Api\Plugin\Plugin;
 use Bedriox\ExamplePlugin\Command\ExampleDisplayCommand;
 use Bedriox\ExamplePlugin\Command\ExampleSenderCommand;
 
 final class Main extends Plugin
 {
+    private const string EXAMPLE_RECIPE = 'exampleplugin:grass_block_from_dirt';
+
     public function onEnable(): void
     {
         $this->context()->events()->registerSubscriber($this);
         $this->context()->commands()->register(new ExampleSenderCommand());
         $this->context()->commands()->register(new ExampleDisplayCommand());
+        $this->context()->recipes()->register(new ShapelessRecipe(
+            self::EXAMPLE_RECIPE,
+            [RecipeIngredient::exact('minecraft:dirt')],
+            [new ItemStack('minecraft:grass_block', 1)],
+        ));
         $this->logger()->info('ExamplePlugin enabled');
+    }
+
+    #[EventHandler(priority: EventPriority::HIGH)]
+    public function onCraft(PlayerCraftItemEvent $event): void
+    {
+        if ($event->recipe->identifier() !== self::EXAMPLE_RECIPE || $event->craftCount <= 16) {
+            return;
+        }
+
+        $event->cancel();
+        $this->context()->server()->sendMessage(
+            $event->player,
+            'ExamplePlugin limits this recipe to 16 crafts per request.',
+        );
+    }
+
+    #[EventHandler(priority: EventPriority::MONITOR)]
+    public function onCrafted(PlayerCraftedItemEvent $event): void
+    {
+        if ($event->recipe->identifier() !== self::EXAMPLE_RECIPE) {
+            return;
+        }
+
+        $this->logger()->debug(\sprintf('Observed %d completed example craft(s)', $event->craftCount));
     }
 
     #[EventHandler]

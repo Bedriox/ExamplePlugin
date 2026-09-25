@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Bedriox\Api\Plugin;
 
 use Bedriox\Api\Command\CommandRegistrar;
+use Bedriox\Api\Crafting\RecipeRegistrar;
 use Bedriox\Api\Event\EventRegistrar;
 use Bedriox\Api\Server;
 
@@ -18,6 +19,7 @@ final class PluginContext
         private readonly SourcePluginRegistrar $sourcePlugins,
         private Server $server,
         private readonly string $dataFolder,
+        private readonly RecipeRegistrar $recipes,
     ) {}
 
     public function name(): string
@@ -47,5 +49,9 @@ final class PluginContext
     public function dataFolder(): string
     {
         return $this->dataFolder;
+    }
+    public function recipes(): RecipeRegistrar
+    {
+        return $this->recipes;
     }
 }
