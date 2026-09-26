@@ -21,6 +21,23 @@ use Bedriox\Api\Crafting\CraftingGrid;
 use Bedriox\Api\Crafting\RecipeRegistrar;
 use Bedriox\Api\Crafting\ShapedRecipe;
 use Bedriox\Api\Crafting\ShapelessRecipe;
+use Bedriox\Api\Entity\CustomEntityState;
+use Bedriox\Api\Entity\CustomEntityType;
+use Bedriox\Api\Entity\CustomMobController;
+use Bedriox\Api\Entity\CustomMobDefinition;
+use Bedriox\Api\Entity\CustomMobDespawnContext;
+use Bedriox\Api\Entity\CustomMobSpawnContext;
+use Bedriox\Api\Entity\CustomMobTickContext;
+use Bedriox\Api\Entity\Entity;
+use Bedriox\Api\Entity\EntityCategory;
+use Bedriox\Api\Entity\EntityInteractionType;
+use Bedriox\Api\Entity\EntityRegistrar;
+use Bedriox\Api\Entity\EntityType;
+use Bedriox\Api\Entity\Mob;
+use Bedriox\Api\Entity\MobActivationState;
+use Bedriox\Api\Entity\SpawnCause;
+use Bedriox\Api\Event\Entity\EntityInteractEvent;
+use Bedriox\Api\Event\Entity\EntitySpawnedEvent;
 use Bedriox\Api\Event\EventHandler;
 use Bedriox\Api\Event\EventPriority;
 use Bedriox\Api\Event\EventRegistrar;
@@ -35,7 +52,10 @@ use Bedriox\Api\Plugin\PluginLogger;
 use Bedriox\Api\Plugin\SourcePluginDefinition;
 use Bedriox\Api\Plugin\SourcePluginRegistrar;
 use Bedriox\Api\Server;
+use Bedriox\Api\World\Position;
 use Bedriox\ExamplePlugin\Command\DisplayMode;
+use Bedriox\ExamplePlugin\Entity\ExampleMobBehavior;
+use Bedriox\ExamplePlugin\Entity\ExampleMobStateCodec;
 use Bedriox\ExamplePlugin\Main;
 use PHPUnit\Framework\TestCase;
 use ReflectionMethod;
@@ -50,17 +70,21 @@ final class ExamplePluginTest extends TestCase
         $logger = new RecordingLogger();
         $server = new RecordingServer();
         $recipes = new RecordingRecipeRegistrar();
-        $plugin = new Main(self::context($logger, $registrar, $commands, $server, $recipes));
+        $entities = new RecordingEntityRegistrar();
+        $plugin = new Main(self::context($logger, $registrar, $commands, $server, $recipes, $entities));
         $player = new Player('Alex', 'uuid-one');
 
         $plugin->onEnable();
         $plugin->onJoin(new PlayerJoinEvent($player));
 
         self::assertSame([$plugin], $registrar->subscribers);
-        self::assertCount(2, $commands->commands);
+        self::assertCount(3, $commands->commands);
         self::assertSame('examplesender', $commands->commands[0]->definition()->name);
+        self::assertSame('examplespawn', $commands->commands[2]->definition()->name);
         self::assertCount(1, $recipes->recipes);
         self::assertSame('exampleplugin:grass_block_from_dirt', $recipes->recipes[0]->identifier());
+        self::assertCount(1, $entities->definitions);
+        self::assertSame('exampleplugin:guide', $entities->definitions[0]->type->identifier());
         self::assertSame(['ExamplePlugin enabled'], $logger->info);
         self::assertSame([['uuid-one', 'Welcome to this Bedriox server, Alex!']], $server->messages);
     }
@@ -197,12 +221,97 @@ final class ExamplePluginTest extends TestCase
         );
     }
 
+    public function testCustomMobCanBeSpawnedAndItsBoundedStateCanBeRestored(): void
+    {
+        $commands = new RecordingCommandRegistrar();
+        $entities = new RecordingEntityRegistrar();
+        $plugin = new Main(self::context(
+            new RecordingLogger(),
+            new RecordingRegistrar(),
+            $commands,
+            new RecordingServer(),
+            entities: $entities,
+        ));
+        $plugin->onEnable();
+
+        $player = new Player('Alex', 'uuid-one', new Position(10.0, 64.0, 20.0), 90.0);
+        $result = $commands->dispatch(2, new CommandContext(
+            new RecordingPlayerSender($player),
+            'examplespawn',
+            new CommandValues(),
+        ));
+
+        self::assertTrue($result->isSuccess());
+        self::assertSame('Spawned the ExamplePlugin guide mob.', $result->message());
+        self::assertCount(1, $entities->spawns);
+        self::assertSame('exampleplugin:guide', $entities->spawns[0][0]->identifier());
+        self::assertEqualsWithDelta(8.0, $entities->spawns[0][1]->x, 0.0001);
+        self::assertEqualsWithDelta(20.0, $entities->spawns[0][1]->z, 0.0001);
+        self::assertSame(90.0, $entities->spawns[0][2]);
+
+        $definition = $entities->definitions[0];
+        self::assertSame('minecraft:cow', $definition->networkAppearance->identifier());
+        $behavior = ($definition->factory)();
+        self::assertInstanceOf(ExampleMobBehavior::class, $behavior);
+        $mob = new RecordingMob($definition->type);
+        $controller = new RecordingCustomMobController();
+        $behavior->onSpawn(new CustomMobSpawnContext($mob, SpawnCause::PLUGIN));
+        $behavior->onTick(new CustomMobTickContext($mob, 1, $controller));
+        $behavior->onAiTick(new CustomMobTickContext($mob, 20, $controller));
+        self::assertCount(1, $controller->moves);
+        self::assertCount(1, $controller->looks);
+        self::assertSame(0.12, $controller->moves[0][1]);
+        self::assertSame(2.0, $controller->moves[0][0]->z);
+        $state = $definition->stateCodec->encode($behavior);
+        self::assertSame('1', $state->bytes());
+        $restored = new ExampleMobBehavior();
+        $definition->stateCodec->restore($restored, $state);
+        self::assertSame(1, $restored->lifetimeTicks());
+        $behavior->onDespawn(new CustomMobDespawnContext($mob));
+    }
+
+    public function testTypedEntityEventsObserveSpawnsAndCancelGuideInteraction(): void
+    {
+        $logger = new RecordingLogger();
+        $server = new RecordingServer();
+        $plugin = new Main(self::context(
+            $logger,
+            new RecordingRegistrar(),
+            new RecordingCommandRegistrar(),
+            $server,
+        ));
+        $entity = new RecordingMob(new CustomEntityType('exampleplugin:guide'));
+        $player = new Player('Alex', 'uuid-one');
+
+        $plugin->onExampleMobSpawned(new EntitySpawnedEvent($entity, SpawnCause::PLUGIN));
+        $interaction = new EntityInteractEvent($player, $entity, EntityInteractionType::INTERACT);
+        $plugin->onExampleMobInteract($interaction);
+
+        self::assertTrue($interaction->isCancelled());
+        self::assertSame(
+            [['uuid-one', 'You found the ExamplePlugin guide mob.']],
+            $server->messages,
+        );
+        self::assertContains('Observed an ExamplePlugin guide mob spawn from plugin.', $logger->debug);
+    }
+
+    public function testCustomMobStateRejectsMalformedPayload(): void
+    {
+        $this->expectException(\UnexpectedValueException::class);
+        new ExampleMobStateCodec()->restore(
+            new ExampleMobBehavior(),
+            new CustomEntityState(1, 'not-a-tick-count'),
+        );
+    }
+
     public function testAttributesDemonstrateDefaultHighAndMonitorPriorities(): void
     {
         self::assertSame(EventPriority::NORMAL, self::handler('onJoin')->priority);
         self::assertSame(EventPriority::HIGH, self::handler('onChat')->priority);
         self::assertSame(EventPriority::HIGH, self::handler('onCraft')->priority);
         self::assertSame(EventPriority::MONITOR, self::handler('onCrafted')->priority);
+        self::assertSame(EventPriority::NORMAL, self::handler('onExampleMobInteract')->priority);
+        self::assertSame(EventPriority::MONITOR, self::handler('onExampleMobSpawned')->priority);
         $monitor = self::handler('observeChat');
         self::assertSame(EventPriority::MONITOR, $monitor->priority);
         self::assertTrue($monitor->receiveCancelled);
@@ -222,6 +331,7 @@ final class ExamplePluginTest extends TestCase
         RecordingCommandRegistrar $commands,
         RecordingServer $server,
         ?RecordingRecipeRegistrar $recipes = null,
+        ?RecordingEntityRegistrar $entities = null,
     ): PluginContext {
         return new PluginContext(
             'ExamplePlugin',
@@ -232,7 +342,144 @@ final class ExamplePluginTest extends TestCase
             $server,
             __DIR__ . '/plugin_data/ExamplePlugin',
             recipes: $recipes ?? new RecordingRecipeRegistrar(),
+            entities: $entities ?? new RecordingEntityRegistrar(),
         );
+    }
+}
+
+final class RecordingEntityRegistrar implements EntityRegistrar
+{
+    /** @var list<CustomMobDefinition> */
+    public array $definitions = [];
+
+    /** @var list<array{CustomEntityType, Position, float, float}> */
+    public array $spawns = [];
+
+    public function register(CustomMobDefinition $definition, bool $replace = false): void
+    {
+        $this->definitions[] = $definition;
+    }
+
+    public function spawn(CustomEntityType $type, Position $position, float $yaw = 0.0, float $pitch = 0.0): void
+    {
+        $this->spawns[] = [$type, $position, $yaw, $pitch];
+    }
+}
+
+final class RecordingCustomMobController implements CustomMobController
+{
+    /** @var list<array{Position, float}> */
+    public array $moves = [];
+
+    /** @var list<Position> */
+    public array $looks = [];
+
+    /** @var list<array{Entity, float}> */
+    public array $targets = [];
+
+    /** @var list<array{float, float, float}> */
+    public array $velocities = [];
+
+    public bool $despawned = false;
+
+    public function moveToward(Position $target, float $speed): void
+    {
+        $this->moves[] = [$target, $speed];
+    }
+
+    public function lookAt(Position $target): void
+    {
+        $this->looks[] = $target;
+    }
+
+    public function target(Entity $target, float $speed): void
+    {
+        $this->targets[] = [$target, $speed];
+    }
+
+    public function setVelocity(float $x, float $y, float $z): void
+    {
+        $this->velocities[] = [$x, $y, $z];
+    }
+
+    public function despawn(): void
+    {
+        $this->despawned = true;
+    }
+}
+
+final readonly class RecordingMob implements Mob
+{
+    public function __construct(private EntityType $type) {}
+
+    public function getUniqueId(): string
+    {
+        return '00000000-0000-4000-8000-000000000001';
+    }
+
+    public function getRuntimeId(): int
+    {
+        return 1;
+    }
+
+    public function getType(): EntityType
+    {
+        return $this->type;
+    }
+
+    public function getCategory(): EntityCategory
+    {
+        return EntityCategory::ANIMAL;
+    }
+
+    public function getPosition(): Position
+    {
+        return new Position(0.0, 64.0, 0.0);
+    }
+
+    public function getWorldName(): string
+    {
+        return 'world';
+    }
+
+    public function getYaw(): float
+    {
+        return 0.0;
+    }
+
+    public function getPitch(): float
+    {
+        return 0.0;
+    }
+
+    public function isOnGround(): bool
+    {
+        return true;
+    }
+
+    public function isPersistent(): bool
+    {
+        return true;
+    }
+
+    public function getHealth(): float
+    {
+        return 10.0;
+    }
+
+    public function getMaximumHealth(): float
+    {
+        return 10.0;
+    }
+
+    public function isAlive(): bool
+    {
+        return true;
+    }
+
+    public function getActivationState(): MobActivationState
+    {
+        return MobActivationState::ACTIVE;
     }
 }
 

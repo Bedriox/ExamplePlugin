@@ -4,12 +4,20 @@ declare(strict_types=1);
 
 namespace Bedriox\Api\Player;
 
+use Bedriox\Api\World\Position;
+
 final class Player
 {
     /** @var list<array{string, list<mixed>}> */
     public array $displays = [];
 
-    public function __construct(public string $name, public string $uuid) {}
+    public function __construct(
+        public string $name,
+        public string $uuid,
+        public Position $position = new Position(0.0, 64.0, 0.0),
+        public float $yaw = 0.0,
+        public float $pitch = 0.0,
+    ) {}
 
     public function sendMessage(string $message): bool
     {

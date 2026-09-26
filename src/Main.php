@@ -6,7 +6,13 @@ namespace Bedriox\ExamplePlugin;
 
 use Bedriox\Api\Crafting\RecipeIngredient;
 use Bedriox\Api\Crafting\ShapelessRecipe;
+use Bedriox\Api\Entity\CustomEntityType;
+use Bedriox\Api\Entity\CustomMobDefinition;
+use Bedriox\Api\Entity\EntityCategory;
+use Bedriox\Api\Entity\VanillaEntityIdentifier;
 use Bedriox\Api\Event\Block\BlockPlacedEvent;
+use Bedriox\Api\Event\Entity\EntityInteractEvent;
+use Bedriox\Api\Event\Entity\EntitySpawnedEvent;
 use Bedriox\Api\Event\EventHandler;
 use Bedriox\Api\Event\EventPriority;
 use Bedriox\Api\Event\Player\PlayerChatEvent;
@@ -17,16 +23,34 @@ use Bedriox\Api\Inventory\ItemStack;
 use Bedriox\Api\Plugin\Plugin;
 use Bedriox\ExamplePlugin\Command\ExampleDisplayCommand;
 use Bedriox\ExamplePlugin\Command\ExampleSenderCommand;
+use Bedriox\ExamplePlugin\Command\ExampleSpawnCommand;
+use Bedriox\ExamplePlugin\Entity\ExampleMobBehavior;
+use Bedriox\ExamplePlugin\Entity\ExampleMobStateCodec;
 
 final class Main extends Plugin
 {
     private const string EXAMPLE_RECIPE = 'exampleplugin:grass_block_from_dirt';
+    private const string EXAMPLE_MOB = 'exampleplugin:guide';
 
     public function onEnable(): void
     {
         $this->context()->events()->registerSubscriber($this);
         $this->context()->commands()->register(new ExampleSenderCommand());
         $this->context()->commands()->register(new ExampleDisplayCommand());
+        $exampleMob = new CustomEntityType(self::EXAMPLE_MOB);
+        $entities = $this->context()->entities();
+        $entities->register(new CustomMobDefinition(
+            $exampleMob,
+            new VanillaEntityIdentifier('minecraft:cow'),
+            EntityCategory::ANIMAL,
+            width: 0.9,
+            height: 1.4,
+            maximumHealth: 10.0,
+            factory: static fn(): ExampleMobBehavior => new ExampleMobBehavior(),
+            stateCodec: new ExampleMobStateCodec(),
+            maximumStateBytes: ExampleMobStateCodec::MAXIMUM_STATE_BYTES,
+        ));
+        $this->context()->commands()->register(new ExampleSpawnCommand($entities, $exampleMob));
         $this->context()->recipes()->register(new ShapelessRecipe(
             self::EXAMPLE_RECIPE,
             [RecipeIngredient::exact('minecraft:dirt')],
@@ -95,5 +119,26 @@ final class Main extends Plugin
             $event->block->position->y,
             $event->block->position->z,
         ));
+    }
+
+    #[EventHandler]
+    public function onExampleMobInteract(EntityInteractEvent $event): void
+    {
+        if ($event->entity->getType()->identifier() !== self::EXAMPLE_MOB) {
+            return;
+        }
+
+        $event->cancel();
+        $this->context()->server()->sendMessage($event->player, 'You found the ExamplePlugin guide mob.');
+    }
+
+    #[EventHandler(priority: EventPriority::MONITOR)]
+    public function onExampleMobSpawned(EntitySpawnedEvent $event): void
+    {
+        if ($event->entity->getType()->identifier() !== self::EXAMPLE_MOB) {
+            return;
+        }
+
+        $this->logger()->debug('Observed an ExamplePlugin guide mob spawn from ' . $event->cause->value . '.');
     }
 }

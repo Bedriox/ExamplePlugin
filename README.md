@@ -9,7 +9,8 @@ PHAR-ready manifest, lifecycle logging, attribute-based event registration,
 the default `NORMAL` priority, an explicit `HIGH` cancellable listener,
 read-only `MONITOR` observation, a safe player message request, class-based
 typed commands, PHP backed-enum arguments, typed command values, senders, and
-the high-level player display API, plus a runtime crafting recipe.
+the high-level player display API, a runtime crafting recipe, and a persistent
+custom mob with typed entity events.
 
 ## Example behavior
 
@@ -25,6 +26,15 @@ the high-level player display API, plus a runtime crafting recipe.
 - `examplesender` reports whether its caller is the server console or a player.
 - `exampledisplay` demonstrates messages, popups, jukebox popups, tips, titles,
   subtitles, action bars, toast notifications, and title clear/reset behavior.
+- `examplespawn` creates the plugin-owned `exampleplugin:guide` mob two blocks
+  in front of the player. The example registers its appearance, dimensions,
+  health, lifecycle behavior, and bounded persistent state through the entity
+  registrar.
+- The guide's AI hook submits bounded movement and look intents through its
+  per-callback controller. Bedriox applies them together only after the hook
+  returns successfully.
+- Interacting with the guide demonstrates a cancellable typed entity event;
+  committed guide spawns are observed through a post-event listener.
 
 `examplesender` accepts either sender type and does not change player or world
 state. `exampledisplay` is player-only and declares its display modes through
@@ -35,7 +45,22 @@ autocomplete. For example:
 /exampledisplay title
 /exampledisplay actionbar
 /exampledisplay toast
+/examplespawn
 ```
+
+Run `examplespawn` while standing in a loaded area with clear space in front
+of the player. The custom type uses a cow as its current client appearance, but
+its canonical identity and lifecycle remain owned by ExamplePlugin. Its state
+codec stores only a bounded lifetime counter and does not serialize PHP
+objects. Its network appearance uses the current vanilla catalog identity;
+that appearance does not replace the plugin-owned canonical type.
+
+Every lifecycle callback is transactional. Calls to the custom mob controller
+and other staged plugin APIs are committed only when the callback returns
+successfully. A callback exception discards the complete staged batch and
+follows the normal plugin failure path. Replacing an owned definition with
+`replace: true` affects later spawns; already-live mobs retain the immutable
+behavior factory and state codec generation with which they were created.
 
 ## Run the source plugin
 

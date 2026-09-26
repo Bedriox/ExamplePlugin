@@ -6,6 +6,9 @@ All notable ExamplePlugin changes are recorded here.
 
 ### Added
 
+- Demonstrate owner-scoped custom mob registration, bounded lifecycle state,
+  authoritative plugin spawning, transactional controller intents, catalog
+  appearances, and typed entity spawn and interaction events.
 - Add a plugin-owned shapeless crafting recipe, pre-craft policy, committed
   craft observation, and repository coverage.
 - Migrate the example commands to the class-based typed API and demonstrate a PHP backed-enum argument through `exampledisplay`.

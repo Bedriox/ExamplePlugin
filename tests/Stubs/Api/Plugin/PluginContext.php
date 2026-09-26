@@ -6,6 +6,7 @@ namespace Bedriox\Api\Plugin;
 
 use Bedriox\Api\Command\CommandRegistrar;
 use Bedriox\Api\Crafting\RecipeRegistrar;
+use Bedriox\Api\Entity\EntityRegistrar;
 use Bedriox\Api\Event\EventRegistrar;
 use Bedriox\Api\Server;
 
@@ -20,6 +21,7 @@ final class PluginContext
         private Server $server,
         private readonly string $dataFolder,
         private readonly RecipeRegistrar $recipes,
+        private readonly EntityRegistrar $entities,
     ) {}
 
     public function name(): string
@@ -53,5 +55,10 @@ final class PluginContext
     public function recipes(): RecipeRegistrar
     {
         return $this->recipes;
+    }
+
+    public function entities(): EntityRegistrar
+    {
+        return $this->entities;
     }
 }
