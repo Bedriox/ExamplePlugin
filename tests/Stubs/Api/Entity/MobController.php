@@ -6,7 +6,7 @@ namespace Bedriox\Api\Entity;
 
 use Bedriox\Api\World\Position;
 
-interface CustomMobController
+interface MobController
 {
     public function moveToward(Position $target, float $speed): void;
 

@@ -23,7 +23,6 @@ use Bedriox\Api\Crafting\ShapedRecipe;
 use Bedriox\Api\Crafting\ShapelessRecipe;
 use Bedriox\Api\Entity\CustomEntityState;
 use Bedriox\Api\Entity\CustomEntityType;
-use Bedriox\Api\Entity\CustomMobController;
 use Bedriox\Api\Entity\CustomMobDefinition;
 use Bedriox\Api\Entity\CustomMobDespawnContext;
 use Bedriox\Api\Entity\CustomMobSpawnContext;
@@ -35,6 +34,7 @@ use Bedriox\Api\Entity\EntityRegistrar;
 use Bedriox\Api\Entity\EntityType;
 use Bedriox\Api\Entity\Mob;
 use Bedriox\Api\Entity\MobActivationState;
+use Bedriox\Api\Entity\MobController;
 use Bedriox\Api\Entity\SpawnCause;
 use Bedriox\Api\Event\Entity\EntityInteractEvent;
 use Bedriox\Api\Event\Entity\EntitySpawnedEvent;
@@ -254,7 +254,7 @@ final class ExamplePluginTest extends TestCase
         $behavior = ($definition->factory)();
         self::assertInstanceOf(ExampleMobBehavior::class, $behavior);
         $mob = new RecordingMob($definition->type);
-        $controller = new RecordingCustomMobController();
+        $controller = new RecordingMobController();
         $behavior->onSpawn(new CustomMobSpawnContext($mob, SpawnCause::PLUGIN));
         $behavior->onTick(new CustomMobTickContext($mob, 1, $controller));
         $behavior->onAiTick(new CustomMobTickContext($mob, 20, $controller));
@@ -366,7 +366,7 @@ final class RecordingEntityRegistrar implements EntityRegistrar
     }
 }
 
-final class RecordingCustomMobController implements CustomMobController
+final class RecordingMobController implements MobController
 {
     /** @var list<array{Position, float}> */
     public array $moves = [];
