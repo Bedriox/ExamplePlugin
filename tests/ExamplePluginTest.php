@@ -53,6 +53,7 @@ use Bedriox\Api\Plugin\SourcePluginDefinition;
 use Bedriox\Api\Plugin\SourcePluginRegistrar;
 use Bedriox\Api\Server;
 use Bedriox\Api\World\Position;
+use Bedriox\Api\World\World;
 use Bedriox\ExamplePlugin\Command\DisplayMode;
 use Bedriox\ExamplePlugin\Entity\ExampleMobBehavior;
 use Bedriox\ExamplePlugin\Entity\ExampleMobStateCodec;
@@ -86,7 +87,10 @@ final class ExamplePluginTest extends TestCase
         self::assertCount(1, $entities->definitions);
         self::assertSame('exampleplugin:guide', $entities->definitions[0]->type->identifier());
         self::assertSame(['ExamplePlugin enabled'], $logger->info);
-        self::assertSame([['uuid-one', 'Welcome to this Bedriox server, Alex!']], $server->messages);
+        self::assertSame(
+            [['message', ['Welcome to this Bedriox server, Alex!']]],
+            $player->displays,
+        );
     }
 
     public function testChatExampleCancelsOnlyTheDocumentedPhrase(): void
@@ -107,7 +111,10 @@ final class ExamplePluginTest extends TestCase
 
         self::assertFalse($accepted->isCancelled());
         self::assertTrue($cancelled->isCancelled());
-        self::assertSame([['uuid-one', 'ExamplePlugin cancelled that message.']], $server->messages);
+        self::assertSame(
+            [['message', ['ExamplePlugin cancelled that message.']]],
+            $player->displays,
+        );
     }
 
     public function testCraftingExampleRegistersObservesAndBoundsItsRecipe(): void
@@ -139,8 +146,8 @@ final class ExamplePluginTest extends TestCase
         self::assertFalse($allowed->isCancelled());
         self::assertTrue($limited->isCancelled());
         self::assertSame(
-            [['uuid-one', 'ExamplePlugin limits this recipe to 16 crafts per request.']],
-            $server->messages,
+            [['message', ['ExamplePlugin limits this recipe to 16 crafts per request.']]],
+            $player->displays,
         );
         self::assertContains('Observed 1 completed example craft(s)', $logger->debug);
     }
@@ -234,7 +241,8 @@ final class ExamplePluginTest extends TestCase
         ));
         $plugin->onEnable();
 
-        $player = new Player('Alex', 'uuid-one', new Position(10.0, 64.0, 20.0), 90.0);
+        $world = new World('world', 1);
+        $player = new Player('Alex', 'uuid-one', new Position(10.0, 64.0, 20.0, world: $world), 90.0);
         $result = $commands->dispatch(2, new CommandContext(
             new RecordingPlayerSender($player),
             'examplespawn',
@@ -247,6 +255,7 @@ final class ExamplePluginTest extends TestCase
         self::assertSame('exampleplugin:guide', $entities->spawns[0][0]->identifier());
         self::assertEqualsWithDelta(8.0, $entities->spawns[0][1]->x, 0.0001);
         self::assertEqualsWithDelta(20.0, $entities->spawns[0][1]->z, 0.0001);
+        self::assertSame($world, $entities->spawns[0][1]->world);
         self::assertSame(90.0, $entities->spawns[0][2]);
 
         $definition = $entities->definitions[0];
@@ -289,8 +298,8 @@ final class ExamplePluginTest extends TestCase
 
         self::assertTrue($interaction->isCancelled());
         self::assertSame(
-            [['uuid-one', 'You found the ExamplePlugin guide mob.']],
-            $server->messages,
+            [['message', ['You found the ExamplePlugin guide mob.']]],
+            $player->displays,
         );
         self::assertContains('Observed an ExamplePlugin guide mob spawn from plugin.', $logger->debug);
     }
@@ -638,13 +647,4 @@ final class UnusedSourcePluginRegistrar implements SourcePluginRegistrar
     }
 }
 
-final class RecordingServer implements Server
-{
-    /** @var list<array{string, string}> */
-    public array $messages = [];
-
-    public function sendMessage(Player $player, string $message): void
-    {
-        $this->messages[] = [$player->uuid, $message];
-    }
-}
+final class RecordingServer implements Server {}

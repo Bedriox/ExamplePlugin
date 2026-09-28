@@ -10,5 +10,8 @@ final readonly class Position
         public float $x,
         public float $y,
         public float $z,
+        public ?float $yaw = null,
+        public ?float $pitch = null,
+        public ?World $world = null,
     ) {}
 }

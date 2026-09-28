@@ -37,6 +37,7 @@ final class ExampleSpawnCommand extends AbstractCommand
                 $player->position->x - sin($yawRadians) * 2.0,
                 $player->position->y,
                 $player->position->z + cos($yawRadians) * 2.0,
+                world: $player->position->world,
             ),
             $player->yaw,
         );

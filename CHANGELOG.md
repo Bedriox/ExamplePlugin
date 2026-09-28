@@ -4,6 +4,13 @@ All notable ExamplePlugin changes are recorded here.
 
 ## Unreleased
 
+### Changed
+
+- Target Bedriox plugin API `0.3`, use the session-bound `Player` methods for
+  private event responses and main, armor, and offhand inventory capabilities
+  instead of routing actions through `Server`, and retain the player's
+  generation-bound world when building a custom-mob spawn position.
+
 ### Added
 
 - Demonstrate owner-scoped custom mob registration, bounded lifecycle state,

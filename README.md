@@ -4,10 +4,10 @@ This repository contains the first-party example plugin for
 [Bedriox](https://bedriox.com), a Minecraft: Bedrock Edition server written in
 modern PHP.
 
-`ExamplePlugin` targets the experimental Bedriox API `0.1`. It demonstrates a
+`ExamplePlugin` targets the experimental Bedriox API `0.3`. It demonstrates a
 PHAR-ready manifest, lifecycle logging, attribute-based event registration,
 the default `NORMAL` priority, an explicit `HIGH` cancellable listener,
-read-only `MONITOR` observation, a safe player message request, class-based
+read-only `MONITOR` observation, session-bound player messaging, class-based
 typed commands, PHP backed-enum arguments, typed command values, senders, and
 the high-level player display API, a runtime crafting recipe, and a persistent
 custom mob with typed entity events.
@@ -61,6 +61,28 @@ successfully. A callback exception discards the complete staged batch and
 follows the normal plugin failure path. Replacing an owned definition with
 `replace: true` affects later spawns; already-live mobs retain the immutable
 behavior factory and state codec generation with which they were created.
+
+The API `0.3` examples keep actions on the object that owns their authority:
+player messages and displays use the event or command's `Player`, spawn
+positions retain the player's generation-bound `World`, and plugin-owned
+registrars come from `PluginContext`. A retained player snapshot cannot message
+a disconnected session, and Bedriox rejects the request by returning `false`.
+
+Player inventory changes follow the same ownership rule. Main inventory and
+hotbar operations use `getInventory()`, equipment uses `getArmorInventory()`,
+and the single offhand slot uses `getOffHandInventory()`:
+
+```php
+use Bedriox\Api\Inventory\ItemStack;
+
+$player->getInventory()->addItem(new ItemStack('minecraft:apple', 1));
+$player->getArmorInventory()->clearAll();
+$player->getOffHandInventory()->clear();
+```
+
+These are session-bound authoritative capabilities. Content arrays are
+snapshots, and a capability retained after the player disconnects cannot
+modify a later connection.
 
 ## Run the source plugin
 

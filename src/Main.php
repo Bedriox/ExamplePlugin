@@ -67,10 +67,7 @@ final class Main extends Plugin
         }
 
         $event->cancel();
-        $this->context()->server()->sendMessage(
-            $event->player,
-            'ExamplePlugin limits this recipe to 16 crafts per request.',
-        );
+        $event->player->sendMessage('ExamplePlugin limits this recipe to 16 crafts per request.');
     }
 
     #[EventHandler(priority: EventPriority::MONITOR)]
@@ -86,10 +83,7 @@ final class Main extends Plugin
     #[EventHandler]
     public function onJoin(PlayerJoinEvent $event): void
     {
-        $this->context()->server()->sendMessage(
-            $event->player,
-            'Welcome to this Bedriox server, ' . $event->player->name . '!',
-        );
+        $event->player->sendMessage('Welcome to this Bedriox server, ' . $event->player->name . '!');
     }
 
     #[EventHandler(priority: EventPriority::HIGH)]
@@ -99,7 +93,7 @@ final class Main extends Plugin
             return;
         }
         $event->cancel();
-        $this->context()->server()->sendMessage($event->player, 'ExamplePlugin cancelled that message.');
+        $event->player->sendMessage('ExamplePlugin cancelled that message.');
     }
 
     #[EventHandler(priority: EventPriority::MONITOR, receiveCancelled: true)]
@@ -129,7 +123,7 @@ final class Main extends Plugin
         }
 
         $event->cancel();
-        $this->context()->server()->sendMessage($event->player, 'You found the ExamplePlugin guide mob.');
+        $event->player->sendMessage('You found the ExamplePlugin guide mob.');
     }
 
     #[EventHandler(priority: EventPriority::MONITOR)]
