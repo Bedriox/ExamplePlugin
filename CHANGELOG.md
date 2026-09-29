@@ -13,6 +13,8 @@ All notable ExamplePlugin changes are recorded here.
 
 ### Added
 
+- Observe committed furnace processing and player experience changes through
+  typed API 0.3 post-events without mutating authoritative state.
 - Demonstrate typed player effects, committed effect events, and targeted world particles through `exampleeffect`.
 - Demonstrate owner-scoped custom mob registration, bounded lifecycle state,
   authoritative plugin spawning, transactional controller intents, catalog

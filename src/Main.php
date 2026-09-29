@@ -19,7 +19,9 @@ use Bedriox\Api\Event\EventPriority;
 use Bedriox\Api\Event\Player\PlayerChatEvent;
 use Bedriox\Api\Event\Player\PlayerCraftedItemEvent;
 use Bedriox\Api\Event\Player\PlayerCraftItemEvent;
+use Bedriox\Api\Event\Player\PlayerExperienceChangedEvent;
 use Bedriox\Api\Event\Player\PlayerJoinEvent;
+use Bedriox\Api\Event\Processing\FurnaceSmeltedEvent;
 use Bedriox\Api\Inventory\ItemStack;
 use Bedriox\Api\Player\Player as ApiPlayer;
 use Bedriox\Api\Plugin\Plugin;
@@ -147,6 +149,31 @@ final class Main extends Plugin
             'Observed %s applied to %s by %s.',
             $event->effect->type->value,
             $event->entity instanceof ApiPlayer ? $event->entity->uuid : $event->entity->getUniqueId(),
+            $event->cause->value,
+        ));
+    }
+
+    #[EventHandler(priority: EventPriority::MONITOR)]
+    public function onFurnaceSmelted(FurnaceSmeltedEvent $event): void
+    {
+        $this->logger()->debug(\sprintf(
+            'Observed %s process %s into %s at %d,%d,%d.',
+            $event->furnaceType->value,
+            $event->input->identifier,
+            $event->result->identifier,
+            $event->position->x,
+            $event->position->y,
+            $event->position->z,
+        ));
+    }
+
+    #[EventHandler(priority: EventPriority::MONITOR)]
+    public function onExperienceChanged(PlayerExperienceChangedEvent $event): void
+    {
+        $delta = $event->experience->totalPoints - $event->previous->totalPoints;
+        $this->logger()->debug(\sprintf(
+            'Observed an experience change of %+d point(s) from %s.',
+            $delta,
             $event->cause->value,
         ));
     }

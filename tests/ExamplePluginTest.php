@@ -48,14 +48,20 @@ use Bedriox\Api\Event\EventRegistrar;
 use Bedriox\Api\Event\Player\PlayerChatEvent;
 use Bedriox\Api\Event\Player\PlayerCraftedItemEvent;
 use Bedriox\Api\Event\Player\PlayerCraftItemEvent;
+use Bedriox\Api\Event\Player\PlayerExperienceChangedEvent;
 use Bedriox\Api\Event\Player\PlayerJoinEvent;
+use Bedriox\Api\Event\Processing\FurnaceSmeltedEvent;
 use Bedriox\Api\Inventory\ItemStack;
+use Bedriox\Api\Player\ExperienceChangeCause;
+use Bedriox\Api\Player\ExperienceSnapshot;
 use Bedriox\Api\Player\Player;
 use Bedriox\Api\Plugin\PluginContext;
 use Bedriox\Api\Plugin\PluginLogger;
 use Bedriox\Api\Plugin\SourcePluginDefinition;
 use Bedriox\Api\Plugin\SourcePluginRegistrar;
+use Bedriox\Api\Processing\FurnaceType;
 use Bedriox\Api\Server;
+use Bedriox\Api\World\BlockPosition;
 use Bedriox\Api\World\Position;
 use Bedriox\Api\World\World;
 use Bedriox\ExamplePlugin\Command\DisplayMode;
@@ -363,6 +369,36 @@ final class ExamplePluginTest extends TestCase
         self::assertContains('Observed an ExamplePlugin guide mob spawn from plugin.', $logger->debug);
     }
 
+    public function testCommittedProcessingAndExperienceEventsAreObserved(): void
+    {
+        $logger = new RecordingLogger();
+        $plugin = new Main(self::context(
+            $logger,
+            new RecordingRegistrar(),
+            new RecordingCommandRegistrar(),
+            new RecordingServer(),
+        ));
+
+        $plugin->onFurnaceSmelted(new FurnaceSmeltedEvent(
+            new BlockPosition(4, 65, -2),
+            FurnaceType::BLAST_FURNACE,
+            new ItemStack('minecraft:raw_iron', 1),
+            new ItemStack('minecraft:iron_ingot', 1),
+        ));
+        $plugin->onExperienceChanged(new PlayerExperienceChangedEvent(
+            new Player('Alex', 'uuid-one'),
+            new ExperienceSnapshot(10),
+            new ExperienceSnapshot(17),
+            ExperienceChangeCause::FURNACE,
+        ));
+
+        self::assertContains(
+            'Observed blast_furnace process minecraft:raw_iron into minecraft:iron_ingot at 4,65,-2.',
+            $logger->debug,
+        );
+        self::assertContains('Observed an experience change of +7 point(s) from furnace.', $logger->debug);
+    }
+
     public function testCustomMobStateRejectsMalformedPayload(): void
     {
         $this->expectException(\UnexpectedValueException::class);
@@ -381,6 +417,8 @@ final class ExamplePluginTest extends TestCase
         self::assertSame(EventPriority::NORMAL, self::handler('onExampleMobInteract')->priority);
         self::assertSame(EventPriority::MONITOR, self::handler('onExampleMobSpawned')->priority);
         self::assertSame(EventPriority::MONITOR, self::handler('onEffectAdded')->priority);
+        self::assertSame(EventPriority::MONITOR, self::handler('onFurnaceSmelted')->priority);
+        self::assertSame(EventPriority::MONITOR, self::handler('onExperienceChanged')->priority);
         $monitor = self::handler('observeChat');
         self::assertSame(EventPriority::MONITOR, $monitor->priority);
         self::assertTrue($monitor->receiveCancelled);

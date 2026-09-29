@@ -12,6 +12,8 @@ typed commands, PHP backed-enum arguments, typed command values, senders, and
 the high-level player display API, a runtime crafting recipe, and a persistent
 custom mob with typed entity events. It also demonstrates the authoritative
 effect manager and typed world-particle API without sending packets directly.
+Committed furnace and player-experience events are observed without mutating
+station state, items, experience, or protocol values.
 
 ## Example behavior
 
@@ -38,6 +40,9 @@ effect manager and typed world-particle API without sending packets directly.
   returns successfully.
 - Interacting with the guide demonstrates a cancellable typed entity event;
   committed guide spawns are observed through a post-event listener.
+- Committed furnace smelts and player experience changes are observed at
+  `MONITOR` priority through typed post-events. The listeners only write bounded
+  debug summaries and do not modify processing or experience.
 
 `examplesender` accepts either sender type and does not change player or world
 state. `exampledisplay` is player-only and declares its display modes through
@@ -92,6 +97,12 @@ $player->getOffHandInventory()->clear();
 These are session-bound authoritative capabilities. Content arrays are
 snapshots, and a capability retained after the player disconnects cannot
 modify a later connection.
+
+Processing and experience listeners use `FurnaceSmeltedEvent` and
+`PlayerExperienceChangedEvent`, the non-deprecated committed event names. A
+plugin that needs policy enforcement should use the matching cancellable
+pre-event, while still respecting Bedriox's reach, ownership, capacity,
+revision, and atomic-commit checks.
 
 ## Run the source plugin
 
