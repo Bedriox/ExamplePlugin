@@ -21,6 +21,9 @@ use Bedriox\Api\Crafting\CraftingGrid;
 use Bedriox\Api\Crafting\RecipeRegistrar;
 use Bedriox\Api\Crafting\ShapedRecipe;
 use Bedriox\Api\Crafting\ShapelessRecipe;
+use Bedriox\Api\Effect\EffectCause;
+use Bedriox\Api\Effect\EffectInstance;
+use Bedriox\Api\Effect\EffectType;
 use Bedriox\Api\Entity\CustomEntityState;
 use Bedriox\Api\Entity\CustomEntityType;
 use Bedriox\Api\Entity\CustomMobDefinition;
@@ -36,6 +39,7 @@ use Bedriox\Api\Entity\Mob;
 use Bedriox\Api\Entity\MobActivationState;
 use Bedriox\Api\Entity\MobController;
 use Bedriox\Api\Entity\SpawnCause;
+use Bedriox\Api\Event\Entity\EntityEffectAddedEvent;
 use Bedriox\Api\Event\Entity\EntityInteractEvent;
 use Bedriox\Api\Event\Entity\EntitySpawnedEvent;
 use Bedriox\Api\Event\EventHandler;
@@ -79,9 +83,10 @@ final class ExamplePluginTest extends TestCase
         $plugin->onJoin(new PlayerJoinEvent($player));
 
         self::assertSame([$plugin], $registrar->subscribers);
-        self::assertCount(3, $commands->commands);
+        self::assertCount(4, $commands->commands);
         self::assertSame('examplesender', $commands->commands[0]->definition()->name);
-        self::assertSame('examplespawn', $commands->commands[2]->definition()->name);
+        self::assertSame('exampleeffect', $commands->commands[2]->definition()->name);
+        self::assertSame('examplespawn', $commands->commands[3]->definition()->name);
         self::assertCount(1, $recipes->recipes);
         self::assertSame('exampleplugin:grass_block_from_dirt', $recipes->recipes[0]->identifier());
         self::assertCount(1, $entities->definitions);
@@ -243,7 +248,7 @@ final class ExamplePluginTest extends TestCase
 
         $world = new World('world', 1);
         $player = new Player('Alex', 'uuid-one', new Position(10.0, 64.0, 20.0, world: $world), 90.0);
-        $result = $commands->dispatch(2, new CommandContext(
+        $result = $commands->dispatch(3, new CommandContext(
             new RecordingPlayerSender($player),
             'examplespawn',
             new CommandValues(),
@@ -277,6 +282,60 @@ final class ExamplePluginTest extends TestCase
         $definition->stateCodec->restore($restored, $state);
         self::assertSame(1, $restored->lifetimeTicks());
         $behavior->onDespawn(new CustomMobDespawnContext($mob));
+    }
+
+    public function testEffectCommandUsesTypedEffectAndParticleApis(): void
+    {
+        $commands = new RecordingCommandRegistrar();
+        $plugin = new Main(self::context(
+            new RecordingLogger(),
+            new RecordingRegistrar(),
+            $commands,
+            new RecordingServer(),
+        ));
+        $plugin->onEnable();
+        $world = new World('world', 1);
+        $player = new Player('Alex', 'uuid-one', new Position(1.0, 64.0, 2.0, world: $world));
+
+        $result = $commands->dispatch(2, new CommandContext(
+            new RecordingPlayerSender($player),
+            'exampleeffect',
+            new CommandValues(),
+        ));
+
+        self::assertTrue($result->isSuccess());
+        self::assertSame('Applied Speed for 10 seconds.', $result->message());
+        self::assertCount(1, $player->getEffects()->added);
+        self::assertSame(EffectType::SPEED, $player->getEffects()->added[0][0]->type);
+        self::assertSame(200, $player->getEffects()->added[0][0]->durationTicks);
+        self::assertCount(1, $world->particles);
+        self::assertInstanceOf(\Bedriox\Api\World\Particle\SimpleParticle::class, $world->particles[0][1]);
+        self::assertSame('minecraft:heart_particle', $world->particles[0][1]->type()->value);
+        self::assertSame([$player], $world->particles[0][2]);
+    }
+
+    public function testEffectPostEventIsObservedThroughTypedValues(): void
+    {
+        $logger = new RecordingLogger();
+        $plugin = new Main(self::context(
+            $logger,
+            new RecordingRegistrar(),
+            new RecordingCommandRegistrar(),
+            new RecordingServer(),
+        ));
+        $player = new Player('Alex', 'uuid-one');
+
+        $plugin->onEffectAdded(new EntityEffectAddedEvent(
+            $player,
+            new EffectInstance(EffectType::SPEED, 200),
+            EffectCause::PLUGIN,
+            null,
+        ));
+
+        self::assertContains(
+            'Observed minecraft:speed applied to uuid-one by plugin.',
+            $logger->debug,
+        );
     }
 
     public function testTypedEntityEventsObserveSpawnsAndCancelGuideInteraction(): void
@@ -321,6 +380,7 @@ final class ExamplePluginTest extends TestCase
         self::assertSame(EventPriority::MONITOR, self::handler('onCrafted')->priority);
         self::assertSame(EventPriority::NORMAL, self::handler('onExampleMobInteract')->priority);
         self::assertSame(EventPriority::MONITOR, self::handler('onExampleMobSpawned')->priority);
+        self::assertSame(EventPriority::MONITOR, self::handler('onEffectAdded')->priority);
         $monitor = self::handler('observeChat');
         self::assertSame(EventPriority::MONITOR, $monitor->priority);
         self::assertTrue($monitor->receiveCancelled);

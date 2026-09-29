@@ -10,7 +10,8 @@ the default `NORMAL` priority, an explicit `HIGH` cancellable listener,
 read-only `MONITOR` observation, session-bound player messaging, class-based
 typed commands, PHP backed-enum arguments, typed command values, senders, and
 the high-level player display API, a runtime crafting recipe, and a persistent
-custom mob with typed entity events.
+custom mob with typed entity events. It also demonstrates the authoritative
+effect manager and typed world-particle API without sending packets directly.
 
 ## Example behavior
 
@@ -26,6 +27,8 @@ custom mob with typed entity events.
 - `examplesender` reports whether its caller is the server console or a player.
 - `exampledisplay` demonstrates messages, popups, jukebox popups, tips, titles,
   subtitles, action bars, toast notifications, and title clear/reset behavior.
+- `exampleeffect` applies Speed for ten seconds and sends a heart particle only
+  to the executing player through the containing world.
 - `examplespawn` creates the plugin-owned `exampleplugin:guide` mob two blocks
   in front of the player. The example registers its appearance, dimensions,
   health, lifecycle behavior, and bounded persistent state through the entity
@@ -45,8 +48,14 @@ autocomplete. For example:
 /exampledisplay title
 /exampledisplay actionbar
 /exampledisplay toast
+/exampleeffect
 /examplespawn
 ```
+
+`exampleeffect` uses `Player::getEffects()` and `World::spawnParticle()`.
+Effect duration is expressed in simulation ticks, and amplifier zero means
+level one. The `EntityEffectAddedEvent` listener observes the committed effect
+through typed values; it does not inspect numeric effect or packet IDs.
 
 Run `examplespawn` while standing in a loaded area with clear space in front
 of the player. The custom type uses a cow as its current client appearance, but

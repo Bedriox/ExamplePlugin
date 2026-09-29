@@ -13,6 +13,7 @@ All notable ExamplePlugin changes are recorded here.
 
 ### Added
 
+- Demonstrate typed player effects, committed effect events, and targeted world particles through `exampleeffect`.
 - Demonstrate owner-scoped custom mob registration, bounded lifecycle state,
   authoritative plugin spawning, transactional controller intents, catalog
   appearances, and typed entity spawn and interaction events.

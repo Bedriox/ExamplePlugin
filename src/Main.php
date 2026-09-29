@@ -11,6 +11,7 @@ use Bedriox\Api\Entity\CustomMobDefinition;
 use Bedriox\Api\Entity\EntityCategory;
 use Bedriox\Api\Entity\VanillaEntityIdentifier;
 use Bedriox\Api\Event\Block\BlockPlacedEvent;
+use Bedriox\Api\Event\Entity\EntityEffectAddedEvent;
 use Bedriox\Api\Event\Entity\EntityInteractEvent;
 use Bedriox\Api\Event\Entity\EntitySpawnedEvent;
 use Bedriox\Api\Event\EventHandler;
@@ -20,8 +21,10 @@ use Bedriox\Api\Event\Player\PlayerCraftedItemEvent;
 use Bedriox\Api\Event\Player\PlayerCraftItemEvent;
 use Bedriox\Api\Event\Player\PlayerJoinEvent;
 use Bedriox\Api\Inventory\ItemStack;
+use Bedriox\Api\Player\Player as ApiPlayer;
 use Bedriox\Api\Plugin\Plugin;
 use Bedriox\ExamplePlugin\Command\ExampleDisplayCommand;
+use Bedriox\ExamplePlugin\Command\ExampleEffectCommand;
 use Bedriox\ExamplePlugin\Command\ExampleSenderCommand;
 use Bedriox\ExamplePlugin\Command\ExampleSpawnCommand;
 use Bedriox\ExamplePlugin\Entity\ExampleMobBehavior;
@@ -37,6 +40,7 @@ final class Main extends Plugin
         $this->context()->events()->registerSubscriber($this);
         $this->context()->commands()->register(new ExampleSenderCommand());
         $this->context()->commands()->register(new ExampleDisplayCommand());
+        $this->context()->commands()->register(new ExampleEffectCommand());
         $exampleMob = new CustomEntityType(self::EXAMPLE_MOB);
         $entities = $this->context()->entities();
         $entities->register(new CustomMobDefinition(
@@ -134,5 +138,16 @@ final class Main extends Plugin
         }
 
         $this->logger()->debug('Observed an ExamplePlugin guide mob spawn from ' . $event->cause->value . '.');
+    }
+
+    #[EventHandler(priority: EventPriority::MONITOR)]
+    public function onEffectAdded(EntityEffectAddedEvent $event): void
+    {
+        $this->logger()->debug(\sprintf(
+            'Observed %s applied to %s by %s.',
+            $event->effect->type->value,
+            $event->entity instanceof ApiPlayer ? $event->entity->uuid : $event->entity->getUniqueId(),
+            $event->cause->value,
+        ));
     }
 }

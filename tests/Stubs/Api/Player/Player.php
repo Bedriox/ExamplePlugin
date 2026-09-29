@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Bedriox\Api\Player;
 
+use Bedriox\Api\Effect\EffectManager;
 use Bedriox\Api\World\Position;
 
 final class Player
@@ -11,13 +12,22 @@ final class Player
     /** @var list<array{string, list<mixed>}> */
     public array $displays = [];
 
+    private EffectManager $effects;
+
     public function __construct(
         public string $name,
         public string $uuid,
         public Position $position = new Position(0.0, 64.0, 0.0),
         public float $yaw = 0.0,
         public float $pitch = 0.0,
-    ) {}
+    ) {
+        $this->effects = new EffectManager();
+    }
+
+    public function getEffects(): EffectManager
+    {
+        return $this->effects;
+    }
 
     public function sendMessage(string $message): bool
     {
