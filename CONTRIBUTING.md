@@ -1,7 +1,6 @@
 # Contributing
 
-Bedriox ExamplePlugin is currently in private incubation. Authorized
-contributors should keep changes focused on accurately teaching a supported
+Bedriox ExamplePlugin accepts contributions focused on accurately teaching a supported
 public Bedriox plugin contract.
 
 Do not invent APIs or implement roadmap features in advance. If the example
