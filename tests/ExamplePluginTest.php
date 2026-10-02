@@ -55,12 +55,15 @@ use Bedriox\Api\Inventory\ItemStack;
 use Bedriox\Api\Player\ExperienceChangeCause;
 use Bedriox\Api\Player\ExperienceSnapshot;
 use Bedriox\Api\Player\Player;
+use Bedriox\Api\Plugin\Data\Configuration;
+use Bedriox\Api\Plugin\Data\PluginData;
 use Bedriox\Api\Plugin\PluginContext;
 use Bedriox\Api\Plugin\PluginLogger;
 use Bedriox\Api\Plugin\SourcePluginDefinition;
 use Bedriox\Api\Plugin\SourcePluginRegistrar;
 use Bedriox\Api\Processing\FurnaceType;
 use Bedriox\Api\Server;
+use Bedriox\Api\TextFormat;
 use Bedriox\Api\World\BlockPosition;
 use Bedriox\Api\World\Position;
 use Bedriox\Api\World\World;
@@ -86,22 +89,22 @@ final class ExamplePluginTest extends TestCase
         $player = new Player('Alex', 'uuid-one');
 
         $plugin->onEnable();
-        $plugin->onJoin(new PlayerJoinEvent($player));
+        $join = new PlayerJoinEvent($player, 'Alex joined the game');
+        $plugin->onJoin($join);
 
         self::assertSame([$plugin], $registrar->subscribers);
-        self::assertCount(4, $commands->commands);
+        self::assertCount(5, $commands->commands);
         self::assertSame('examplesender', $commands->commands[0]->definition()->name);
         self::assertSame('exampleeffect', $commands->commands[2]->definition()->name);
         self::assertSame('examplespawn', $commands->commands[3]->definition()->name);
+        self::assertSame('examplebroadcast', $commands->commands[4]->definition()->name);
         self::assertCount(1, $recipes->recipes);
         self::assertSame('exampleplugin:grass_block_from_dirt', $recipes->recipes[0]->identifier());
         self::assertCount(1, $entities->definitions);
         self::assertSame('exampleplugin:guide', $entities->definitions[0]->type->identifier());
         self::assertSame(['ExamplePlugin enabled'], $logger->info);
-        self::assertSame(
-            [['message', ['Welcome to this Bedriox server, Alex!']]],
-            $player->displays,
-        );
+        self::assertSame(TextFormat::YELLOW . 'Alex joined this Bedriox server' . TextFormat::RESET, $join->getJoinMessage());
+        self::assertSame([], $player->displays);
     }
 
     public function testChatExampleCancelsOnlyTheDocumentedPhrase(): void
@@ -126,6 +129,29 @@ final class ExamplePluginTest extends TestCase
             [['message', ['ExamplePlugin cancelled that message.']]],
             $player->displays,
         );
+    }
+
+    public function testBroadcastCommandUsesThePublicServerApi(): void
+    {
+        $commands = new RecordingCommandRegistrar();
+        $server = new RecordingServer();
+        $plugin = new Main(self::context(
+            new RecordingLogger(),
+            new RecordingRegistrar(),
+            $commands,
+            $server,
+        ));
+        $plugin->onEnable();
+
+        $result = $commands->dispatch(4, new CommandContext(
+            new RecordingConsoleSender(),
+            'examplebroadcast',
+            new CommandValues(['message' => 'Server restart soon']),
+        ));
+
+        self::assertTrue($result->isSuccess());
+        self::assertSame('Sent the message to 2 player(s).', $result->message());
+        self::assertSame(['Server restart soon'], $server->broadcasts);
     }
 
     public function testCraftingExampleRegistersObservesAndBoundsItsRecipe(): void
@@ -447,7 +473,7 @@ final class ExamplePluginTest extends TestCase
             $commands,
             new UnusedSourcePluginRegistrar(),
             $server,
-            __DIR__ . '/plugin_data/ExamplePlugin',
+            new RecordingPluginData(),
             recipes: $recipes ?? new RecordingRecipeRegistrar(),
             entities: $entities ?? new RecordingEntityRegistrar(),
         );
@@ -627,6 +653,11 @@ final class RecordingLogger implements PluginLogger
     {
         $this->info[] = $message;
     }
+
+    public function notice(string $message): void {}
+    public function warning(string $message): void {}
+    public function error(string $message): void {}
+    public function critical(string $message): void {}
 }
 
 final class RecordingCommandRegistrar implements CommandRegistrar
@@ -745,4 +776,41 @@ final class UnusedSourcePluginRegistrar implements SourcePluginRegistrar
     }
 }
 
-final class RecordingServer implements Server {}
+final class RecordingServer implements Server
+{
+    /** @var list<string> */
+    public array $broadcasts = [];
+
+    public function broadcastMessage(string $message): int
+    {
+        $this->broadcasts[] = $message;
+
+        return 2;
+    }
+}
+
+final class RecordingPluginData implements PluginData
+{
+    public function saveResource(string $name, bool $replace = false): bool
+    {
+        return true;
+    }
+
+    public function config(string $name = 'config.yml'): Configuration
+    {
+        return new RecordingConfiguration();
+    }
+}
+
+final class RecordingConfiguration implements Configuration
+{
+    public function getString(string $key, string $default = ''): string
+    {
+        return $key === 'join.message' ? '{player} joined this Bedriox server' : $default;
+    }
+
+    public function getBool(string $key, bool $default = false): bool
+    {
+        return $key === 'join.enabled' ? true : $default;
+    }
+}

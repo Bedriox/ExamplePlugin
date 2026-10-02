@@ -26,4 +26,19 @@ final readonly class CommandValues
 
         return $value;
     }
+
+    public function message(string $name): string
+    {
+        return $this->string($name);
+    }
+
+    public function string(string $name): string
+    {
+        $value = $this->values[$name] ?? null;
+        if (!\is_string($value)) {
+            throw new LogicException('Command string value is missing.');
+        }
+
+        return $value;
+    }
 }

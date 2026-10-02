@@ -8,6 +8,7 @@ use Bedriox\Api\Command\CommandRegistrar;
 use Bedriox\Api\Crafting\RecipeRegistrar;
 use Bedriox\Api\Entity\EntityRegistrar;
 use Bedriox\Api\Event\EventRegistrar;
+use Bedriox\Api\Plugin\Data\PluginData;
 use Bedriox\Api\Server;
 
 final class PluginContext
@@ -19,7 +20,7 @@ final class PluginContext
         private readonly CommandRegistrar $commands,
         private readonly SourcePluginRegistrar $sourcePlugins,
         private Server $server,
-        private readonly string $dataFolder,
+        private readonly PluginData $data,
         private readonly RecipeRegistrar $recipes,
         private readonly EntityRegistrar $entities,
     ) {}
@@ -48,9 +49,9 @@ final class PluginContext
     {
         return $this->server;
     }
-    public function dataFolder(): string
+    public function data(): PluginData
     {
-        return $this->dataFolder;
+        return $this->data;
     }
     public function recipes(): RecipeRegistrar
     {

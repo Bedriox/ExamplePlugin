@@ -4,7 +4,7 @@ This repository contains the first-party example plugin for
 [Bedriox](https://bedriox.com), a Minecraft: Bedrock Edition server written in
 modern PHP.
 
-`ExamplePlugin` targets the experimental Bedriox API `0.3`. It demonstrates a
+`ExamplePlugin` targets the experimental Bedriox API `0.4`. It demonstrates a
 PHAR-ready manifest, lifecycle logging, attribute-based event registration,
 the default `NORMAL` priority, an explicit `HIGH` cancellable listener,
 read-only `MONITOR` observation, session-bound player messaging, class-based
@@ -18,6 +18,9 @@ station state, items, experience, or protocol values.
 ## Example behavior
 
 - Players receive a welcome message after joining.
+- `resources/config.yml` is copied into the plugin data directory once and
+  controls the public join announcement without overwriting later edits.
+- `examplebroadcast <message>` demonstrates the global server broadcast API.
 - Sending the exact text `cancel me` demonstrates chat cancellation and an
   authoritative private response.
 - Accepted and cancelled chat is observed at `MONITOR` priority.
@@ -55,6 +58,7 @@ autocomplete. For example:
 /exampledisplay toast
 /exampleeffect
 /examplespawn
+/examplebroadcast Server restart soon
 ```
 
 `exampleeffect` uses `Player::getEffects()` and `World::spawnParticle()`.
@@ -76,7 +80,7 @@ follows the normal plugin failure path. Replacing an owned definition with
 `replace: true` affects later spawns; already-live mobs retain the immutable
 behavior factory and state codec generation with which they were created.
 
-The API `0.3` examples keep actions on the object that owns their authority:
+The API `0.4` examples keep actions on the object that owns their authority:
 player messages and displays use the event or command's `Player`, spawn
 positions retain the player's generation-bound `World`, and plugin-owned
 registrars come from `PluginContext`. A retained player snapshot cannot message
@@ -97,6 +101,13 @@ $player->getOffHandInventory()->clear();
 These are session-bound authoritative capabilities. Content arrays are
 snapshots, and a capability retained after the player disconnects cannot
 modify a later connection.
+
+Packaged resources and PluginTools source resources use the same plugin data
+API. The example copies `resources/config.yml` only when it does not already
+exist, then reads it with `$this->context()->data()->config()`. YAML, YML, and
+JSON configuration files support typed getters, dot-separated keys, saving,
+and reloading. The plugin-bound logger identifies `ExamplePlugin` on every
+debug, info, notice, warning, error, and critical record.
 
 Processing and experience listeners use `FurnaceSmeltedEvent` and
 `PlayerExperienceChangedEvent`, the non-deprecated committed event names. A

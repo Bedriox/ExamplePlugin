@@ -10,12 +10,12 @@ final readonly class CommandParameter
 {
     /**
      * @param list<string>             $choices
-     * @param class-string<BackedEnum> $enumClass
+     * @param class-string<BackedEnum>|null $enumClass
      */
     private function __construct(
         public string $name,
         public array $choices,
-        public string $enumClass,
+        public ?string $enumClass,
     ) {}
 
     /** @param class-string<BackedEnum> $enumClass */
@@ -26,5 +26,10 @@ final readonly class CommandParameter
             array_map(static fn(BackedEnum $case): string => (string) $case->value, $enumClass::cases()),
             $enumClass,
         );
+    }
+
+    public static function message(string $name): self
+    {
+        return new self($name, [], null);
     }
 }

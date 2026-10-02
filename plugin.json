@@ -2,7 +2,7 @@
   "schema": 1,
   "name": "ExamplePlugin",
   "version": "0.1.0",
-  "api": "^0.3",
+  "api": "^0.4",
   "main": "Bedriox\\ExamplePlugin\\Main",
   "namespace": "Bedriox\\ExamplePlugin",
   "authors": ["Bedriox Team"],

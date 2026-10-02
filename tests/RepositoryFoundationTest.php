@@ -34,7 +34,7 @@ final class RepositoryFoundationTest extends TestCase
         self::assertIsArray($manifest);
         self::assertSame(1, $manifest['schema'] ?? null);
         self::assertSame('ExamplePlugin', $manifest['name'] ?? null);
-        self::assertSame('^0.3', $manifest['api'] ?? null);
+        self::assertSame('^0.4', $manifest['api'] ?? null);
         self::assertSame('Bedriox\\ExamplePlugin\\Main', $manifest['main'] ?? null);
         self::assertFileExists(__DIR__ . '/../src/Main.php');
     }

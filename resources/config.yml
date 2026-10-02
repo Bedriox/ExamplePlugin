@@ -1,0 +1,3 @@
+join:
+  enabled: true
+  message: "{player} joined this Bedriox server"

@@ -4,6 +4,9 @@ All notable ExamplePlugin changes are recorded here.
 
 ## Unreleased
 
+- Target Bedriox plugin API 0.4 and demonstrate packaged configuration
+  resources, customizable join announcements, and global broadcasts.
+
 ### Changed
 
 - Target Bedriox plugin API `0.3`, use the session-bound `Player` methods for

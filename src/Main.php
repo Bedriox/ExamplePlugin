@@ -25,6 +25,8 @@ use Bedriox\Api\Event\Processing\FurnaceSmeltedEvent;
 use Bedriox\Api\Inventory\ItemStack;
 use Bedriox\Api\Player\Player as ApiPlayer;
 use Bedriox\Api\Plugin\Plugin;
+use Bedriox\Api\TextFormat;
+use Bedriox\ExamplePlugin\Command\ExampleBroadcastCommand;
 use Bedriox\ExamplePlugin\Command\ExampleDisplayCommand;
 use Bedriox\ExamplePlugin\Command\ExampleEffectCommand;
 use Bedriox\ExamplePlugin\Command\ExampleSenderCommand;
@@ -39,6 +41,7 @@ final class Main extends Plugin
 
     public function onEnable(): void
     {
+        $this->context()->data()->saveResource('config.yml');
         $this->context()->events()->registerSubscriber($this);
         $this->context()->commands()->register(new ExampleSenderCommand());
         $this->context()->commands()->register(new ExampleDisplayCommand());
@@ -57,6 +60,7 @@ final class Main extends Plugin
             maximumStateBytes: ExampleMobStateCodec::MAXIMUM_STATE_BYTES,
         ));
         $this->context()->commands()->register(new ExampleSpawnCommand($entities, $exampleMob));
+        $this->context()->commands()->register(new ExampleBroadcastCommand($this->context()->server()));
         $this->context()->recipes()->register(new ShapelessRecipe(
             self::EXAMPLE_RECIPE,
             [RecipeIngredient::exact('minecraft:dirt')],
@@ -89,7 +93,18 @@ final class Main extends Plugin
     #[EventHandler]
     public function onJoin(PlayerJoinEvent $event): void
     {
-        $event->player->sendMessage('Welcome to this Bedriox server, ' . $event->player->name . '!');
+        $config = $this->context()->data()->config();
+        if (!$config->getBool('join.enabled', true)) {
+            $event->setJoinMessage(null);
+
+            return;
+        }
+
+        $event->setJoinMessage(TextFormat::YELLOW . str_replace(
+            '{player}',
+            $event->player->name,
+            $config->getString('join.message', '{player} joined the server'),
+        ) . TextFormat::RESET);
     }
 
     #[EventHandler(priority: EventPriority::HIGH)]
